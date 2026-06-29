@@ -4,7 +4,7 @@ from aws_cdk import (
     RemovalPolicy,
     aws_s3 as s3,
     aws_lambda as _lambda,
-    aws_iam as iam,
+    aws_secretsmanager as secretsmanager,
     aws_s3_notifications as s3n
 )
 from constructs import Construct
@@ -24,10 +24,22 @@ class ServerlessRagPipelineStack(Stack):
             auto_delete_objects=True
         )
 
-        # 2. Shared Config Variables (Replace with secret references in production)
-        pinecone_api_key = "YOUR_PINECONE_API_KEY"
+        # 2. Shared Config Variables
         pinecone_index = "YOUR_PINECONE_INDEX_NAME"
-        openai_api_key = "YOUR_OPENAI_API_KEY"
+
+        # Secrets should already exist in AWS Secrets Manager.
+        # Expected secret value can be either a plain string key or JSON, for example:
+        # {"api_key": "..."}
+        pinecone_api_secret = secretsmanager.Secret.from_secret_name_v2(
+            self,
+            "PineconeApiSecret",
+            "my/rag/pinecone-api-key",
+        )
+        openai_api_secret = secretsmanager.Secret.from_secret_name_v2(
+            self,
+            "OpenAiApiSecret",
+            "my/rag/openai-api-key",
+        )
 
         # 3. Docker-based Ingestion Lambda (Handles dependencies > 250MB limit)
         ingest_lambda = _lambda.DockerImageFunction(
@@ -36,14 +48,16 @@ class ServerlessRagPipelineStack(Stack):
             timeout=Duration.minutes(5),
             memory_size=1024,
             environment={
-                "PINECONE_API_KEY": pinecone_api_key,
+                "PINECONE_API_SECRET_NAME": pinecone_api_secret.secret_name,
                 "PINECONE_INDEX_NAME": pinecone_index,
-                "OPENAI_API_KEY": openai_api_key
+                "OPENAI_API_SECRET_NAME": openai_api_secret.secret_name,
             }
         )
 
         # Grant Ingestion Lambda explicit permissions to read from S3 (Least Privilege)
         source_bucket.grant_read(ingest_lambda)
+        pinecone_api_secret.grant_read(ingest_lambda)
+        openai_api_secret.grant_read(ingest_lambda)
 
         # 4. Attach S3 Event Trigger to Ingestion Lambda
         source_bucket.add_event_notification(
@@ -60,8 +74,11 @@ class ServerlessRagPipelineStack(Stack):
             timeout=Duration.seconds(30),
             memory_size=512,
             environment={
-                "PINECONE_API_KEY": pinecone_api_key,
+                "PINECONE_API_SECRET_NAME": pinecone_api_secret.secret_name,
                 "PINECONE_INDEX_NAME": pinecone_index,
-                "OPENAI_API_KEY": openai_api_key
+                "OPENAI_API_SECRET_NAME": openai_api_secret.secret_name,
             }
         )
+
+        pinecone_api_secret.grant_read(query_lambda)
+        openai_api_secret.grant_read(query_lambda)

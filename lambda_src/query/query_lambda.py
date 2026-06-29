@@ -1,11 +1,38 @@
 import os
 import json
 import openai
+import boto3
 from pinecone import Pinecone
 
+
+def _read_api_key_from_secret(secret_name: str) -> str:
+    client = boto3.client("secretsmanager")
+    response = client.get_secret_value(SecretId=secret_name)
+    secret_value = response.get("SecretString", "")
+
+    if not secret_value:
+        raise ValueError(f"Secret {secret_name} is empty or missing SecretString")
+
+    # Support either plain string secrets or JSON payloads.
+    try:
+        secret_json = json.loads(secret_value)
+    except json.JSONDecodeError:
+        return secret_value
+
+    return (
+        secret_json.get("api_key")
+        or secret_json.get("OPENAI_API_KEY")
+        or secret_json.get("PINECONE_API_KEY")
+        or ""
+    )
+
+
+openai_api_key = _read_api_key_from_secret(os.environ["OPENAI_API_SECRET_NAME"])
+pinecone_api_key = _read_api_key_from_secret(os.environ["PINECONE_API_SECRET_NAME"])
+
 # Initialize clients globally for execution container reuse
-openai_client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
+openai_client = openai.OpenAI(api_key=openai_api_key)
+pc = Pinecone(api_key=pinecone_api_key)
 pinecone_index = pc.Index(os.environ["PINECONE_INDEX_NAME"])
 
 def lambda_handler(event, context):
