@@ -41,10 +41,12 @@ class ServerlessRagPipelineStack(Stack):
             "my/rag/openai-api-key",
         )
 
-        # 3. Docker-based Ingestion Lambda (Handles dependencies > 250MB limit)
-        ingest_lambda = _lambda.DockerImageFunction(
+        # 3. Ingestion Lambda as a normal zip-based function (simpler than Docker)
+        ingest_lambda = _lambda.Function(
             self, "IngestionLambda",
-            code=_lambda.DockerImageCode.from_image_asset("./lambda_src/ingestion"),
+            runtime=_lambda.Runtime.PYTHON_3_14,
+            handler="ingest_lambda.lambda_handler",
+            code=_lambda.Code.from_asset("./lambda_src/ingestion"),
             timeout=Duration.minutes(5),
             memory_size=1024,
             environment={
