@@ -67,7 +67,7 @@ class ServerlessRagPipelineStack(Stack):
             s3n.LambdaDestination(ingest_lambda)
         )
 
-        # 5. Zip-based Query/Chat Lambda (No heavy dependencies, pure SDK client calls)
+        # 5. Zip-based Query/Chat Lambda (no bundling)
         query_lambda = _lambda.Function(
             self, "QueryLambda",
             runtime=_lambda.Runtime.PYTHON_3_14,
