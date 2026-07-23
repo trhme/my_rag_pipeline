@@ -25,7 +25,7 @@ class ServerlessRagPipelineStack(Stack):
         )
 
         # 2. Shared Config Variables
-        pinecone_index = "YOUR_PINECONE_INDEX_NAME"
+        pinecone_index = "my-rag-pipeline-pinecone-index"
 
         # Secrets should already exist in AWS Secrets Manager.
         # Expected secret value can be either a plain string key or JSON, for example:
