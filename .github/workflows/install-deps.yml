@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  install-dependencies:
+  build-dependencies:
     runs-on: ubuntu-latest
 
     steps:
@@ -46,3 +46,64 @@ jobs:
         run: |
           python -c "import pypdf, openai, boto3; print('ingest deps OK')"
           python -c "import openai, boto3; print('query deps OK')"
+
+  synth:
+    needs: build-dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install CDK dependencies
+        run: |
+          python -m pip install --upgrade aws-cdk-lib constructs
+          npm install -g aws-cdk@2
+
+      - name: Synth CDK app
+        run: cdk synth
+
+  deploy:
+    needs: synth
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Upgrade pip tooling
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install ingestion Lambda dependencies
+        run: |
+          python -m pip install -r lambda_src/ingestion/requirements.txt -t lambda_src/ingestion
+
+      - name: Install query Lambda dependencies
+        run: |
+          python -m pip install -r lambda_src/query/requirements.txt -t lambda_src/query
+
+      - name: Install CDK dependencies
+        run: |
+          python -m pip install --upgrade aws-cdk-lib constructs
+          npm install -g aws-cdk@2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Deploy CDK stack
+        run: cdk deploy --require-approval never
