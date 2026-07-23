@@ -6,7 +6,7 @@ RUN python -m pip install --no-cache-dir \
     pypdf \
     tiktoken \
     openai \
-    pinecone-client
+    pinecone
 
 # Allow override via --entrypoint while keeping Lambda handler as default
 ENTRYPOINT []
