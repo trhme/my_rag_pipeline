@@ -41,6 +41,8 @@ jobs:
           python -m pip install -r lambda_src/query/requirements.txt -t lambda_src/query
 
       - name: Confirm package install
+        env:
+          PYTHONPATH: lambda_src/ingestion:lambda_src/query
         run: |
           python -c "import pypdf, openai, boto3; print('ingest deps OK')"
           python -c "import openai, boto3; print('query deps OK')"
