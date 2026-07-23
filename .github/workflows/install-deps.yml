@@ -1,0 +1,46 @@
+name: Build Lambda Dependencies
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  install-dependencies:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Upgrade pip tooling
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Cache pip downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-cache-${{ runner.os }}-${{ hashFiles('lambda_src/ingestion/requirements.txt', 'lambda_src/query/requirements.txt') }}
+          restore-keys: |
+            pip-cache-${{ runner.os }}-
+
+      - name: Install ingestion Lambda dependencies
+        run: |
+          python -m pip install -r lambda_src/ingestion/requirements.txt -t lambda_src/ingestion
+
+      - name: Install query Lambda dependencies
+        run: |
+          python -m pip install -r lambda_src/query/requirements.txt -t lambda_src/query
+
+      - name: Confirm package install
+        run: |
+          python -c "import pypdf, openai, boto3; print('ingest deps OK')"
+          python -c "import openai, boto3; print('query deps OK')"

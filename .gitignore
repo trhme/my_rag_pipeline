@@ -40,3 +40,7 @@ cdk.out/
 .env
 .env.*
 !.env.example
+
+# Lambda build artifacts installed in source folders
+lambda_src/ingestion/*
+lambda_src/query/*
